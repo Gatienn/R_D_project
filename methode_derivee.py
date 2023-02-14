@@ -68,6 +68,19 @@ def seuil_grid_search3d(X, seuils, step=0.1, min=0, max=1, nb_points=5): #foncti
     s=np.unravel_index(np.argmax(scores), np.shape(xx))
     return scores, xx[s], yy[s], zz[s]
 
+def seuil_grid_search_opt3d(X, seuils, step=0.1, min=0, max=1, nb_points=5): #parcourt les points de la simulation plutôt qu'une grille afin de réduire le temps de calcul
+    n=len(X)
+    scores=np.zeros(shape = (n,n,n))
+    for i in range(n):
+        for j in range(n):
+            for k in range(n):
+                print (i,j,k)
+                seuils= np.array([X[i,0],X[j,1],X[k,2]])
+                X_classes=sc_to_class1(X,seuils) #état de X à chaque pas de temps
+                scores[i,j,k] = correlation_score3d(X, X_classes, nb_points) #état estimés à partir des dérivées comparés avec les états réels
+    s=np.unravel_index(np.argmax(scores), (n,n,n))
+    return scores, X[s[0],0], X[s[1],1], X[s[2],2]
+
 def sc_to_class1(X,seuils): #renvoie le vecteur X1 des états discrets dans lesquels se trouvent les points de X
     X1=[]
     state=''
