@@ -258,3 +258,45 @@ def sc_to_class(X,Y): #renvoie le vecteur X1 des états discrets dans lesquels s
         X1.append(temp)
         temp=[]
     return to_categorical(X1)
+
+def affichage2d1d(noise_data, seuils):
+    sab, sbc, sca = seuils[0], seuils[1], seuils[2]
+    xdata,ydata,zdata = noise_data[0:len(noise_data),0],noise_data[0:len(noise_data),1],noise_data[0:len(noise_data),2]
+    n=np.arange(len(xdata))
+
+    #Coloration des points en fonction de leur état discret
+    D_id_color = {'000': 'blue', '001': 'orange', '010': 'green', '011': 'red', '100': 'purple', '101': 'brown', '110': 'pink', '111': 'grey'}
+
+    state_list=[] #récupération de l'état discret
+    for i in range(len(noise_data)):
+        state=str(int(noise_data[i,0]>sab))+str(int(noise_data[i,1]>sbc))+str(int(noise_data[i,2]>sca))
+        state_list.append(state) #on passe du binaire au décimal
+
+    color_map=[D_id_color[x] for x in state_list]
+
+    fig=plt.figure(figsize=(9,7))
+
+    sub1 = fig.add_subplot(2,2,1) # two rows, two columns, fist cell
+    sub1.scatter(xdata, ydata, c=color_map, label=set(color_map))
+
+    sub2 = fig.add_subplot(2,2,2) # two rows, two columns, second cell
+    sub2.scatter(xdata, zdata, c=color_map, label=set(color_map))
+
+    sub3 = fig.add_subplot(2,2,(3,4)) # two rows, two colums, combined third and fourth cell
+    sub3.scatter(n, xdata, c='b')
+    sub3.scatter(n, ydata, c='r')
+    sub3.scatter(n, zdata, c='g')
+
+    sub1.set_xlabel('sa, sab ='+str(round(sab,2)), fontweight='bold')
+    sub1.set_ylabel('sb, sbc ='+str(round(sbc,2)), fontweight='bold')
+    sub2.set_xlabel('sa, sab ='+str(round(sab,2)), fontweight='bold')
+    sub2.set_ylabel('sc, sca ='+str(round(sca,2)), fontweight='bold')
+    sub3.set_title('bleu : sa, rouge : sb, vert : sc', y=-0.3)
+
+    markers = [plt.Line2D([0,0],[0,0],color=color, marker='o', linestyle='') for color in D_id_color.values()]
+    plt.legend(markers, D_id_color.keys(), numpoints=1, bbox_to_anchor=(1.13,2)) #légende pour chaque couleur
+
+    print("nombre d'états discrets visités : ",len(set(color_map)))
+    print('sab =', sab, 'sbc =', sbc, 'sca =', sca)
+
+    plt.show()
