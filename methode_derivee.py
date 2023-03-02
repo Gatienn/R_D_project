@@ -847,7 +847,7 @@ def seuil_grid_search2d(X, seuils, step=0.1, min=0, max=1, nb_points=1): #foncti
     s=np.unravel_index(np.argmax(scores), np.shape(xx))
     return scores, xx[s], yy[s]
 
-def seuil_grid_search3d(X, seuils, step=0.1, min=0, max=1, nb_points=1): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
+def seuil_grid_search3d(X, step=0.1, min=0, max=1, nb_points=1): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
     xx,yy,zz=grid3d(min,max,step)
     scores=np.zeros(xx.shape)
     for i in range(len(xx)):
@@ -994,6 +994,26 @@ def score_quantile(N, step=0.1, nb_points=1, noise = 0.0):
 
         score_moy_distrib.append(np.mean(scores)) #score moyen
     return score_max_distrib, score_min_distrib, score_vrais_seuils_distrib, score_moy_distrib
+
+def seuil_grid_search1d(X, step=0.1, min=0, max=1, nb_points=1):
+    xx = np.arange(min, max+step, step)
+    score_vect=[]
+    for i in range(len(xx)):
+        score = 0
+        sab = xx[i]
+        for j in range(nb_points, len(X)-nb_points):
+            s=0
+            for k in range(1,nb_points+1): #nb de points à considérer de part et d'autre
+                s+= (X[j+k,1]-X[j-k,1])/(2*k) #Concentration B pour le seuil A
+            #s+= score_saturation(X, sab, j) #on augmente le score si la concentration est à un maximum ou un minimum
+            score += np.abs(s)*int(int(s>0) == int(X[i,0]<sab)) #vaut abs(s) si le signe correspond, 0 sinon
+        score_vect.append(score)
+    return np.array(score_vect)
+
+#def saturation(X, sab, j):
+
+#à changer : augmenter le score si la concentration est proche du min ou du max et que la dérivée est nulle
+# et ne pas prendre en compte les points après : n'influent pas sur ce qu'il se passe à l'instant t
 
 G=create_dataset_sc(1,10,50)
 X, seuils= np.array(G[0][0]), np.array(G[1][0])
