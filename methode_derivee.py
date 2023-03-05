@@ -847,7 +847,7 @@ def seuil_grid_search2d(X, seuils, step=0.1, min=0, max=1, nb_points=1): #foncti
     s=np.unravel_index(np.argmax(scores), np.shape(xx))
     return scores, xx[s], yy[s]
 
-def seuil_grid_search3d(X, step=0.1, min=0, max=1, nb_points=1): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
+def seuil_grid_search3d_old(X, step=0.1, min=0, max=1, nb_points=1): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
     xx,yy,zz=grid3d(min,max,step)
     scores=np.zeros(xx.shape)
     for i in range(len(xx)):
@@ -859,7 +859,20 @@ def seuil_grid_search3d(X, step=0.1, min=0, max=1, nb_points=1): #fonction qui p
     s=np.unravel_index(np.argmax(scores), np.shape(xx))
     return scores, xx[s], yy[s], zz[s]
 
-def seuil_grid_search_opt3d(X, seuils, step=0.1, min=0, max=1, nb_points=1): #parcourt les points de la simulation plutôt qu'une grille afin de réduire le temps de calcul
+def seuil_grid_search3d(X, step=0.1, min=0, max=1, nb_points=1): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
+    xx,yy,zz=grid3d(min,max,step)
+    T = table_derivees(X, nb_points)
+    scores=np.zeros(xx.shape)
+    for i in range(len(xx)):
+        for j in range(len(xx[0])):
+            for k in range(len(xx[0,0])):
+                seuils= np.array([xx[i,j,k],yy[i,j,k],zz[i,j,k]])
+                X_classes=sc_to_class1(X,seuils) #état de X à chaque pas de temps
+                scores[i,j,k] = correlation_score3d(X=X, X_classes=X_classes, nb_points=nb_points, table_derivees = T) #état estimés à partir des dérivées comparés avec les états réels
+    s=np.unravel_index(np.argmax(scores), np.shape(xx))
+    return scores, xx[s], yy[s], zz[s]
+
+def seuil_grid_search_opt3d(X, step=0.1, min=0, max=1, nb_points=1): #parcourt les points de la simulation plutôt qu'une grille afin de réduire le temps de calcul
     n=len(X)
     scores=np.zeros(shape = (n,n,n))
     for i in range(n):
@@ -872,6 +885,15 @@ def seuil_grid_search_opt3d(X, seuils, step=0.1, min=0, max=1, nb_points=1): #pa
     s=np.unravel_index(np.argmax(scores), (n,n,n))
     return scores, X[s[0],0], X[s[1],1], X[s[2],2]
 
+def table_derivees(X, nb_points = 5):
+    n=len(X)
+    T=np.zeros(shape=(n-2*nb_points,3, nb_points))
+    for i in range(len(T)):
+        for j in range(3):
+            for p in range(1, nb_points+1):
+                T[i,j,p-1] = (X[i+p,j]-X[i-p,j])/(2*p)
+    return T
+
 def sc_to_class1(X,seuils): #renvoie le vecteur X1 des états discrets dans lesquels se trouvent les points de X
     X1=[]
     state=''
@@ -880,7 +902,18 @@ def sc_to_class1(X,seuils): #renvoie le vecteur X1 des états discrets dans lesq
         X1.append(int(state,2)) #on passe du binaire au décimal
     return to_categorical(X1)
 
-def correlation_score3d(X, X_classes, nb_points=1):
+def correlation_score3d(X, X_classes, table_derivees, nb_points=1):
+    score = 0
+    state_derivative = ['111','011','110','010','101','001','100','000']
+    for i in range(len(table_derivees)):
+        a = np.argmax(X_classes[i]) #état supposé
+        for j in range(3):
+            for p in range(nb_points):
+                s=table_derivees[i,j,p]
+                score+=np.abs(s)*int(int(s>0) == int(state_derivative[a][j]))
+    return score/(3*(len(X)-2*nb_points))
+
+def correlation_score3d_old(X, X_classes, nb_points=1):
     score = 0
     for i in range(nb_points,len(X_classes)-nb_points):
         a = np.argmax(X_classes[i]) #état supposé
@@ -930,7 +963,6 @@ def point_score_value1(X,a,i,k, nb_points=1):
         s+= np.abs(s_temp)*int(int(s_temp>0) == int(state_derivative[a][k]))
     return s
     # =valeur de la pente si le signe correspond, 0 sinon
-
 
 def evaluate_grid_search(Ns, step= 0.1, nb_points=1): #Utilise la méthode un grand nombre de fois et évalue son efficacité
     score_tot = 0
