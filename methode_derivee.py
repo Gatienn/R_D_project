@@ -835,7 +835,25 @@ def grid3d(min = 0, max = 1, step = 0.1): #crée une grille avec les valeurs de 
     z=np.arange(min,max+step,step)
     return np.array(np.meshgrid(x,y,z))
 
-def seuil_grid_search2d(X, seuils, step=0.1, min=0, max=1, nb_points=1): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
+def point_score_value1(X,a,i,k, nb_points=1):
+    state_derivative = ['111','011','110','010','101','001','100','000'] #signe de la dérivée attendu pour chaque état
+    s=0
+    for j in range(1,nb_points+1): #nb de points à considérer de part et d'autre
+        s_temp = (X[i+j,k]-X[i-j,k])/(2*j)
+        s+= np.abs(s_temp)*int(int(s_temp>0) == int(state_derivative[a][k]))
+    return s
+    # =valeur de la pente si le signe correspond, 0 sinon
+
+def table_derivees(X, nb_points = 1): #calcul de la pente avec les points de part et d'autre de l'instant considéré
+    n=len(X)
+    T=np.zeros(shape=(n-2*nb_points,3, nb_points))
+    for i in range(nb_points, len(T)+nb_points):
+        for j in range(3):
+            for p in range(1, nb_points+1):
+                T[i-nb_points,j,p-1] = (X[i+p,j]-X[i-p,j])/(2*p)
+    return T
+
+def seuil_grid_search2d(X, seuils, step=0.1, min=0, max=1, nb_points=1, score_function = point_score_value1): #fonction qui parcourt la grille pour trouver les seuils avec le meilleur score
     xx,yy = grid2d(min,max,step)
     scores = np.zeros(xx.shape)
     sc = seuils[2]
@@ -843,7 +861,7 @@ def seuil_grid_search2d(X, seuils, step=0.1, min=0, max=1, nb_points=1): #foncti
         for j in range(len(xx[0])):
             seuils= np.array([xx[i,j],yy[i,j], sc])
             X_classes=sc_to_class1(X,seuils) #état de X à chaque pas de temps
-            scores[i,j] = correlation_score3d(X, X_classes, nb_points) #état estimés à partir des dérivées comparés avec les états réels
+            scores[i,j] = correlation_score3d_old(X, X_classes, nb_points, score_function = score_function) #état estimés à partir des dérivées comparés avec les états réels
     s=np.unravel_index(np.argmax(scores), np.shape(xx))
     return scores, xx[s], yy[s]
 
@@ -859,9 +877,9 @@ def seuil_grid_search3d_old(X, step=0.1, min=0, max=1, nb_points=1): #fonction q
     s=np.unravel_index(np.argmax(scores), np.shape(xx))
     return scores, xx[s], yy[s], zz[s]
 
-def seuil_grid_search3d(X, step=0.1, min=0, max=1, nb_points=1): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
+def seuil_grid_search3d(X, step=0.1, min=0, max=1, nb_points=1, table = table_derivees): #fonction qui parcoure la grille pour trouver les seuils avec le meilleur score
     xx,yy,zz=grid3d(min,max,step)
-    T = table_derivees(X, nb_points)
+    T = table(X, nb_points)
     scores=np.zeros(xx.shape)
     for i in range(len(xx)):
         for j in range(len(xx[0])):
@@ -885,13 +903,13 @@ def seuil_grid_search_opt3d(X, step=0.1, min=0, max=1, nb_points=1): #parcourt l
     s=np.unravel_index(np.argmax(scores), (n,n,n))
     return scores, X[s[0],0], X[s[1],1], X[s[2],2]
 
-def table_derivees(X, nb_points = 5):
+def table_derivees_anterieur(X, nb_points = 1): #calcul de la pente avec les points avant l'instant du point considéré
     n=len(X)
-    T=np.zeros(shape=(n-2*nb_points,3, nb_points))
-    for i in range(len(T)):
+    T=np.zeros(shape=(n-nb_points,3, nb_points))
+    for i in range(nb_points, len(T)+nb_points):
         for j in range(3):
             for p in range(1, nb_points+1):
-                T[i,j,p-1] = (X[i+p,j]-X[i-p,j])/(2*p)
+                T[i-nb_points,j,p-1] = (X[i,j]-X[i-p,j])/(2*p)
     return T
 
 def sc_to_class1(X,seuils): #renvoie le vecteur X1 des états discrets dans lesquels se trouvent les points de X
@@ -905,20 +923,20 @@ def sc_to_class1(X,seuils): #renvoie le vecteur X1 des états discrets dans lesq
 def correlation_score3d(X, X_classes, table_derivees, nb_points=1):
     score = 0
     state_derivative = ['111','011','110','010','101','001','100','000']
-    for i in range(len(table_derivees)):
+    for i in range(nb_points, len(table_derivees)+nb_points):
         a = np.argmax(X_classes[i]) #état supposé
         for j in range(3):
             for p in range(nb_points):
-                s=table_derivees[i,j,p]
+                s=table_derivees[i-nb_points,j,p]
                 score+=np.abs(s)*int(int(s>0) == int(state_derivative[a][j]))
     return score/(3*(len(X)-2*nb_points))
 
-def correlation_score3d_old(X, X_classes, nb_points=1):
+def correlation_score3d_old(X, X_classes, nb_points=1, score_function = point_score_value1):
     score = 0
     for i in range(nb_points,len(X_classes)-nb_points):
         a = np.argmax(X_classes[i]) #état supposé
         for k in range(3):
-            score += point_score_value1(X,a,i,k, nb_points) #ajout d'un score traduisant la corrélation état discret/valeur de la dérivée
+            score += score_function(X,a,i,k, nb_points) #ajout d'un score traduisant la corrélation état discret/valeur de la dérivée
     return score/(3*(len(X)-2*nb_points))
 
 def point_score(X,a,i,k, nb_points=1): #score traduisant la corrélation état discret/valeur de la dérivée
@@ -947,7 +965,7 @@ def point_score_sign1(X,a,i,k, nb_points=1):
     s=np.sum(x-X[i-nb_points:i,k])+np.sum(X[i+1:i+1+nb_points,k]-x)
     return int(int(s>0) == int(state_derivative[a][k]))
 
-def point_score_value(X,a,i,k, nb_points=1):
+def point_score_value(X,a,i,k, nb_points=1): #calcule la valeur des pentes avec des points de part et d'autre
     state_derivative = ['111','011','110','010','101','001','100','000'] #signe de la dérivée attendu pour chaque état
     s=0
     for j in range(1,nb_points+1): #nb de points à considérer de part et d'autre
@@ -955,13 +973,12 @@ def point_score_value(X,a,i,k, nb_points=1):
     return np.abs(s)*int(int(s>0) == int(state_derivative[a][k]))
     # =valeur de la pente si le signe correspond, 0 sinon
 
-def point_score_value1(X,a,i,k, nb_points=1):
+def point_score_value_anterieur(X,a,i,k, nb_points=1): #calcule la valeur des pentes avec des points avant l'instant considéré
     state_derivative = ['111','011','110','010','101','001','100','000'] #signe de la dérivée attendu pour chaque état
     s=0
     for j in range(1,nb_points+1): #nb de points à considérer de part et d'autre
-        s_temp = (X[i+j,k]-X[i-j,k])/(2*j)
-        s+= np.abs(s_temp)*int(int(s_temp>0) == int(state_derivative[a][k]))
-    return s
+        s+= (X[i,k]-X[i-j,k])/(2*j)
+    return np.abs(s)*int(int(s>0) == int(state_derivative[a][k]))
     # =valeur de la pente si le signe correspond, 0 sinon
 
 def evaluate_grid_search(Ns, step= 0.1, nb_points=1): #Utilise la méthode un grand nombre de fois et évalue son efficacité
@@ -974,17 +991,17 @@ def evaluate_grid_search(Ns, step= 0.1, nb_points=1): #Utilise la méthode un gr
         score_tot = score_tot + np.abs(sa-seuils[0]) + np.abs(sb-seuils[1]) + np.abs(sb-seuils[2])
     return score_tot/(3*Ns)
 
-def score_map(min = 0, max = 1, step = 0.1, nb_points=1):
+def score_map(min = 0, max = 1, step = 0.1, nb_points=1, score_function = point_score_value1):
     G = create_dataset_sc(1,10,50)
     X, seuils = np.array(G[0][0]), np.array(G[1][0])
     grid = grid2d(min, max, step)
     xx, yy = grid[0], grid[1]
-    scores, sa, sb = seuil_grid_search2d(X=X, seuils=seuils, step=step, nb_points=nb_points)
+    scores, sa, sb = seuil_grid_search2d(X=X, seuils=seuils, step=step, nb_points=nb_points, score_function = score_function)
     plt.pcolor(xx, yy, scores)
     #plt.imshow(scores)
     plt.colorbar()
-    plt.xlabel('sab estimé : ' + str(round(sa,2))+' sab réel ' + str(round(seuils[0],2)))
-    plt.ylabel(('sbc estimé : ' + str(round(sb,2))+' sbc réel ' + str(round(seuils[1],2))))
+    plt.xlabel('theta_ab estimé : ' + str(round(sa,2))+' theta_ab réel ' + str(round(seuils[0],2)))
+    plt.ylabel(('theta_bc estimé : ' + str(round(sb,2))+' theta_bc réel ' + str(round(seuils[1],2))))
     print(scores)
     print('sa estimé : ', sa, 'sa réel', seuils[0])
     print('sb estimé : ', sb, 'sb réel', seuils[1])
@@ -1003,7 +1020,7 @@ def indice_vrais_seuils(seuils, step=0.1):
     x, y, z = int(sbc_round//step), int(sab_round//step), int(sca_round//step)
     return x,y,z
 
-def score_quantile(N, step=0.1, nb_points=1, noise = 0.0):
+def score_quantile(N, step=0.1, nb_points=1, noise = 0.0, table = table_derivees):
     score_max_distrib = []
     score_min_distrib = []
     score_vrais_seuils_distrib = []
@@ -1013,7 +1030,7 @@ def score_quantile(N, step=0.1, nb_points=1, noise = 0.0):
     for i in range(N):
         G = create_dataset_sc(1,10,50, noise = noise)
         X, seuils = np.array(G[0][0]), np.array(G[1][0])
-        scores, sab, sbc, sca = seuil_grid_search3d(X=X, seuils=seuils, step=step, nb_points=nb_points)
+        scores, sab, sbc, sca = seuil_grid_search3d(X=X, step=step, nb_points=nb_points, table = table)
 
         indmax = np.unravel_index(np.argmax(scores), np.shape(scores)) #coordonnées du score maximum
         score_max_distrib.append(scores[indmax]) #On ajoute la valeur du score maximum
@@ -1036,9 +1053,10 @@ def seuil_grid_search1d(X, step=0.1, min=0, max=1, nb_points=1):
         for j in range(nb_points, len(X)-nb_points):
             s=0
             for k in range(1,nb_points+1): #nb de points à considérer de part et d'autre
-                s+= (X[j+k,1]-X[j-k,1])/(2*k) #Concentration B pour le seuil A
+                s_temp = (X[j+k,1]-X[j-k,1])/(2*k) #Concentration B pour le seuil A
+                s+= np.abs(s_temp)*int(int(s_temp>0) == int(X[j,0]<sab)) #vaut abs(s) si le signe correspond, 0 sinon
             #s+= score_saturation(X, sab, j) #on augmente le score si la concentration est à un maximum ou un minimum
-            score += np.abs(s)*int(int(s>0) == int(X[i,0]<sab)) #vaut abs(s) si le signe correspond, 0 sinon
+            score += s
         score_vect.append(score)
     return np.array(score_vect)
 

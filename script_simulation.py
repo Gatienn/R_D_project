@@ -701,9 +701,9 @@ def affichage3d():
 
     ax.set_xbound(lower=0, upper=1), ax.set_ybound(lower=0, upper=1), ax.set_zbound(lower=0, upper=1)
 
-    ax.set_xlabel('sa'+'\n'+'sab ='+str(round(sab,2)), fontweight='bold')
-    ax.set_ylabel('sb'+'\n'+'sbc ='+str(round(sbc,2)), fontweight='bold')
-    ax.set_zlabel('sc'+'\n'+'sca ='+str(round(sca,2)), fontweight='bold')
+    ax.set_xlabel('xa'+'\n'+'theta_ab ='+str(round(sab,2)), fontweight='bold')
+    ax.set_ylabel('xb'+'\n'+'theta_bc ='+str(round(sbc,2)), fontweight='bold')
+    ax.set_zlabel('xc'+'\n'+'theta_ca ='+str(round(sca,2)), fontweight='bold')
 
     '''xx, yy = np.meshgrid(range(11), range(11))
     ax.plot_surface(0.1*xx, 0.1*yy, 0.5+np.zeros(shape=(11,11)), alpha=0.2)
