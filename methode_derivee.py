@@ -991,7 +991,7 @@ def evaluate_grid_search(Ns, step= 0.1, nb_points=1): #Utilise la méthode un gr
         score_tot = score_tot + np.abs(sa-seuils[0]) + np.abs(sb-seuils[1]) + np.abs(sb-seuils[2])
     return score_tot/(3*Ns)
 
-def score_map(min = 0, max = 1, step = 0.1, nb_points=1, score_function = point_score_value1):
+def score_map(min = 0, max = 1, step = 0.1, nb_points=5, score_function = point_score_value1):
     G = create_dataset_sc(1,10,50)
     X, seuils = np.array(G[0][0]), np.array(G[1][0])
     grid = grid2d(min, max, step)
